@@ -14,6 +14,8 @@ class Hosting {
     this.behindProxy = opts.behindProxy
 
     this.proxy = httpProxy.createProxyServer()
+    this.proxy.on('error', this._onerror.bind(this))
+
     this.insecureServer = http.createServer()
     this.secureServer = https.createServer({ SNICallback: this._SNICallback.bind(this) })
 
@@ -93,6 +95,20 @@ class Hosting {
 
     // TODO: ideally manual forward it without http-proxy
     this.proxy.web(req, res, { target: app.destination })
+  }
+
+  _onerror (err, req, res) {
+    if (err.code === 'ECONNREFUSED') {
+      res.writeHead(521, { 'Content-Type': 'text/plain' })
+      res.end('Web server is down.')
+      return
+    }
+
+    // Temporarily log unknown errors to catch the common ones like timeout, etc
+    console.error(err)
+
+    res.writeHead(500, { 'Content-Type': 'text/plain' })
+    res.end('Internal error.')
   }
 
   _getRemoteAddress (req) {
