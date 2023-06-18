@@ -67,7 +67,7 @@ module.exports = class Hosting {
   _SNICallback (servername, cb) {
     const app = this.apps.get(servername)
 
-    if (this.log) console.log('SNI:', servername, 'App found?', !!app)
+    if (this.log) console.log('- SNI:', servername, 'App found?', !!app)
 
     if (app && app.secureContext) {
       cb(null, app.secureContext)
