@@ -6,7 +6,6 @@ const httpProxy = require('http-proxy')
 const reduceUA = require('reduce-user-agent')
 const graceful = require('graceful-http')
 const crayon = require('tiny-crayon')
-const isCloudFlare = require('./lib/is-cloudflare.js')
 const listen = require('./lib/listen.js')
 
 module.exports = class Hosting {
@@ -15,9 +14,11 @@ module.exports = class Hosting {
 
     this.log = !!opts.log
     this.behindProxy = opts.behindProxy
+    this.auth = opts.auth
 
     this.proxy = httpProxy.createProxyServer()
-    this.proxy.on('error', this._onerror.bind(this))
+    this.proxy.on('error', this._onproxyerror.bind(this))
+    this.proxy.on('proxyReq', this._onproxyreq.bind(this))
 
     this.insecureServer = http.createServer()
     this.secureServer = https.createServer({ SNICallback: this._SNICallback.bind(this) })
@@ -81,7 +82,7 @@ module.exports = class Hosting {
 
     if (this.log) this._logRequest(req, app)
 
-    if (this.behindProxy === 'cf' && !isCloudFlare(req.connection.remoteAddress)) {
+    if (!this._isAuthenticated(req)) {
       res.connection.destroy()
       return
     }
@@ -104,10 +105,23 @@ module.exports = class Hosting {
     } */
 
     // TODO: ideally manual forward it without http-proxy
-    this.proxy.web(req, res, { target: app.destination })
+    this.proxy.web(req, res, { target: app.destination, server })
   }
 
-  _onerror (err, req, res) {
+  _onproxyreq (proxyReq, req, res, options) {
+    proxyReq.removeHeader('x-simple-hosting')
+
+    if (!this.behindProxy) {
+      const remoteAddress = this._getRemoteAddress(req)
+
+      proxyReq.removeHeader('Forwarded')
+      proxyReq.removeHeader('X-Forwarded-Host')
+      proxyReq.setHeader('X-Forwarded-For', remoteAddress)
+      proxyReq.setHeader('X-Forwarded-Proto', this.insecureServer === options.server ? 'http' : 'https')
+    }
+  }
+
+  _onproxyerror (err, req, res) {
     if (err.code === 'ECONNREFUSED') {
       res.writeHead(521, { 'Content-Type': 'text/plain' })
       res.end('Web server is down.')
@@ -121,19 +135,21 @@ module.exports = class Hosting {
     res.end('Internal error.')
   }
 
+  _isAuthenticated (req) {
+    return !this.auth || this.auth === req.headers['x-simple-hosting']
+  }
+
   _getRemoteAddress (req) {
-    if (this.behindProxy === 'cf' && !isCloudFlare(req.connection.remoteAddress)) {
-      return req.connection.remoteAddress
-    }
+    if (!this.behindProxy) return req.connection.remoteAddress
 
-    if (this.behindProxy) return (req.headers['x-forwarded-for'] || '').split(',').shift()
+    if (!this._isAuthenticated(req)) return req.connection.remoteAddress
 
-    return req.connection.remoteAddress
+    return (req.headers['x-forwarded-for'] || '').split(',').shift()
   }
 
   _logRequest (req, app) {
     const remoteAddress = this._getRemoteAddress(req)
-    const remoteCountry = this.behindProxy === 'cf' && isCloudFlare(req.connection.remoteAddress) ? req.headers['cf-ipcountry'] : null
+    const remoteCountry = this.behindProxy === 'cf' && this.auth && this._isAuthenticated(req) ? req.headers['cf-ipcountry'] : null
 
     const o = crayon.gray(crayon.bold('['))
     const c = crayon.gray(crayon.bold(']'))
@@ -141,7 +157,7 @@ module.exports = class Hosting {
     console.log(
       '- Request',
       o + crayon.white((new Date().toLocaleString('en-GB'))) + c,
-      o + crayon.yellow(remoteAddress), crayon.gray(remoteCountry || 'null') + c,
+      o + (this._isAuthenticated(req) ? crayon.green('OK') : crayon.red('ERR')), crayon.yellow(remoteAddress), crayon.gray(remoteCountry || 'null') + c,
       // req.headers,
       o + (app ? crayon.green('OK') : crayon.red('ERR')), crayon.cyan(req.headers.host), crayon.yellow(req.method), crayon.magenta(req.url) + c,
       // req.body,

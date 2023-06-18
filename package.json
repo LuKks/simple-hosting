@@ -19,7 +19,6 @@
   "dependencies": {
     "graceful-http": "^1.0.0",
     "http-proxy": "^1.18.1",
-    "ip-range-check": "^0.2.0",
     "reduce-user-agent": "^1.0.3",
     "tiny-crayon": "^1.0.5"
   },

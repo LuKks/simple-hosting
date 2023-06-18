@@ -38,7 +38,7 @@ Creates a pair of servers that uses the `Host` header to dynamically load differ
 ```js
 {
   log: false, // Enable requests logging
-  behindProxy: false // If you're behind CloudFlare then set it to 'cf', otherwise use `true`
+  behindProxy: false // If hosting is behind CloudFlare or NGINX then enable this option
 }
 ```
 
