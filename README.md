@@ -1,15 +1,15 @@
-# like-hosting
+# simple-hosting
 
 Simple reverse proxy for hosting multiple apps in the same server
 
 ```
-npm i like-hosting
+npm i simple-hosting
 ```
 
 ## Usage
 
 ```js
-const Hosting = require('like-hosting')
+const Hosting = require('simple-hosting')
 
 const hosting = new Hosting()
 

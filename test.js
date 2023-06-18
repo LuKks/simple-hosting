@@ -19,4 +19,6 @@ test('basic', async function (t) {
   console.log('status', response.status)
   const data = await response.text()
   console.log('data', data)
+
+  await hosting.close()
 })
