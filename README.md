@@ -67,7 +67,7 @@ Change the app configuration in real-time. For example, you could change the `de
 
 Same `options` as for adding an app.
 
-#### `hosting.listen([options])`
+#### `await hosting.listen([options])`
 
 Start listening for new requests. Each hosting has two servers (HTTP and HTTPS).
 
