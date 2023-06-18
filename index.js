@@ -8,7 +8,7 @@ const graceful = require('graceful-http')
 const crayon = require('tiny-crayon')
 const isCloudFlare = require('./lib/is-cloudflare.js')
 
-class Hosting {
+module.exports = class Hosting {
   constructor (opts = {}) {
     this.apps = new Map()
 
@@ -47,15 +47,17 @@ class Hosting {
     if (opts.destination) app.destination = opts.destination
   }
 
-  listen () {
-    this.insecureServer.listen(80)
-    this.secureServer.listen(443)
+  async listen (opts = {}) {
+    await Promise.all([
+      listen(this.insecureServer, opts.insecurePort || 80),
+      opts.securePort !== false ? listen(this.secureServer, opts.securePort || 443) : null
+    ])
   }
 
   async close () {
     await Promise.all([
       this.insecureServerClose(),
-      this.secureServerClose()
+      this.secureServer.listening ? this.secureServerClose() : null
     ])
     this.proxy.close()
   }
@@ -147,7 +149,23 @@ class Hosting {
   }
 }
 
-module.exports = Hosting
+function listen (server, port, address) {
+  return new Promise((resolve, reject) => {
+    server.on('listening', done)
+    server.on('error', done)
+
+    if (address) server.listen(port, address)
+    else server.listen(port)
+
+    function done (err) {
+      server.off('listening', done)
+      server.off('error', done)
+
+      if (err) reject(err)
+      else resolve()
+    }
+  })
+}
 
 function createSecureContext (cert, key) {
   // TODO: should be async
