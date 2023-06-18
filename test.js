@@ -9,11 +9,11 @@ test('basic', async function (t) {
 
   const hosting = new Hosting()
   hosting.add('a.leet.ar', { destination: 'http://127.0.0.1:1337' })
-  hosting.add('b.leet.ar', { destination: 'http://127.0.0.1:1338' })
+  hosting.add('b.leet.ar', { destination: 'http://127.0.0.1:3000' })
   await hosting.listen({ insecurePort: 8080, securePort: false })
 
   const app1 = await createServer(1337, (req, res) => res.end('Hello'))
-  const app2 = await createServer(1338, (req, res) => res.end('World'))
+  const app2 = await createServer(3000, (req, res) => res.end('World'))
 
   const a = await fetch('http://127.0.0.1:8080', { headers: { host: 'a.leet.ar' } })
   t.is(a.status, 200)
