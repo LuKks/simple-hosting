@@ -38,9 +38,22 @@ Creates a pair of servers that uses the `Host` header to dynamically load differ
 ```js
 {
   log: false, // Enable requests logging
-  behindProxy: false // If hosting is behind CloudFlare or NGINX then enable this option
+  behindProxy: false, // If hosting is behind CloudFlare or NGINX then enable this option
+  auth: String // Secret token that must be sent in the request header "x-simple-hosting"
 }
 ```
+
+If you're not behind any kind of proxy then don't worry about the `auth` option.
+
+If you're behind CloudFlare, NGINX, etc then to avoid spoofing headers you must use the `auth` option.
+
+CloudFlare authentication:
+- Go to Rules -> Transform Rules -> Modify Request Header.
+- Create a rule for all incoming requests.
+- Set the header name as `x-simple-hosting` with your secret auth token as value.
+
+NGINX authentication:
+- Configure it like `proxy_set_header x-simple-hosting <secret-auth-token>`
 
 #### `hosting.add(servername, options)`
 

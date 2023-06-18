@@ -86,7 +86,7 @@ test('forwarded headers', async function (t) {
 })
 
 test('auth', async function (t) {
-  t.plan(5)
+  t.plan(8)
 
   const hosting = new Hosting({ auth: '4321' })
   hosting.add('a.leet.ar', { destination: 'http://127.0.0.1:1337' })
@@ -114,6 +114,10 @@ test('auth', async function (t) {
   const a = await fetch('http://127.0.0.1:8080', { headers: { host: 'a.leet.ar', 'x-simple-hosting': '4321' } })
   t.is(a.status, 200)
   t.is(await a.text(), 'Hello')
+
+  const b = await fetch('http://127.0.0.1:8080', { headers: { host: 'a.leet.ar', 'X-sImPlE-hOsTiNg': '4321' } })
+  t.is(b.status, 200)
+  t.is(await b.text(), 'Hello')
 
   app.close()
 
