@@ -27,11 +27,20 @@ await hosting.listen({ securePort: false })
 // Or if this is in a server then use your browser to request the actual domains
 ```
 
+Feel free to make an issue if you have any doubt so we can improve the README as well.
+
 ## API
 
 #### `const hosting = new Hosting([options])`
 
 Creates a pair of servers that uses the `Host` header to dynamically load different apps.
+
+```js
+{
+  log: false, // Enable requests logging
+  behindProxy: false // If you're behind CloudFlare then set it to 'cf', otherwise use `true`
+}
+```
 
 #### `hosting.add(servername, options)`
 
