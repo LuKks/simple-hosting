@@ -7,6 +7,7 @@ const reduceUA = require('reduce-user-agent')
 const graceful = require('graceful-http')
 const crayon = require('tiny-crayon')
 const isCloudFlare = require('./lib/is-cloudflare.js')
+const listen = require('./lib/listen.js')
 
 module.exports = class Hosting {
   constructor (opts = {}) {
@@ -147,24 +148,6 @@ module.exports = class Hosting {
       crayon.gray(reduceUA(req.headers['user-agent']))
     )
   }
-}
-
-function listen (server, port, address) {
-  return new Promise((resolve, reject) => {
-    server.on('listening', done)
-    server.on('error', done)
-
-    if (address) server.listen(port, address)
-    else server.listen(port)
-
-    function done (err) {
-      server.off('listening', done)
-      server.off('error', done)
-
-      if (err) reject(err)
-      else resolve()
-    }
-  })
 }
 
 function createSecureContext (cert, key) {
