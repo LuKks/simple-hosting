@@ -5,6 +5,8 @@ const fs = require('fs')
 const httpProxy = require('http-proxy')
 const reduceUA = require('reduce-user-agent')
 const graceful = require('graceful-http')
+const crayon = require('tiny-crayon')
+const isCloudFlare = require('./lib/is-cloudflare.js')
 
 class Hosting {
   constructor (opts = {}) {
@@ -74,7 +76,12 @@ class Hosting {
   _onrequest (server, req, res) {
     const app = this.apps.get(req.headers.host)
 
-    if (this.log) this._logRequest(req)
+    if (this.log) this._logRequest(req, app)
+
+    if (this.behindProxy === 'cf' && !isCloudFlare(req.connection.remoteAddress)) {
+      res.connection.destroy()
+      return
+    }
 
     if (!app) {
       res.connection.destroy()
@@ -112,26 +119,30 @@ class Hosting {
   }
 
   _getRemoteAddress (req) {
-    if (this.behindProxy) {
-      if (this.behindProxy === 'cf') return req.headers['cf-connecting-ip']
-
-      return req.headers['x-forwarded-for'].split(',').shift()
+    if (this.behindProxy === 'cf' && !isCloudFlare(req.connection.remoteAddress)) {
+      return req.connection.remoteAddress
     }
+
+    if (this.behindProxy) return (req.headers['x-forwarded-for'] || '').split(',').shift()
 
     return req.connection.remoteAddress
   }
 
-  _logRequest (req) {
+  _logRequest (req, app) {
     const remoteAddress = this._getRemoteAddress(req)
+    const remoteCountry = this.behindProxy === 'cf' && isCloudFlare(req.connection.remoteAddress) ? req.headers['cf-ipcountry'] : null
+
+    const o = crayon.gray(crayon.bold('['))
+    const c = crayon.gray(crayon.bold(']'))
 
     console.log(
       '- Request',
-      '[' + (new Date().toLocaleString('en-GB')) + ']',
-      '[' + remoteAddress, (this.behindProxy === 'cf' ? req.headers['cf-ipcountry'] : null) + ']',
+      o + crayon.white((new Date().toLocaleString('en-GB'))) + c,
+      o + crayon.yellow(remoteAddress), crayon.gray(remoteCountry || 'null') + c,
       // req.headers,
-      '[' + req.headers.host, req.method, req.url + ']',
+      o + (app ? crayon.green('OK') : crayon.red('ERR')), crayon.cyan(req.headers.host), crayon.yellow(req.method), crayon.magenta(req.url) + c,
       // req.body,
-      reduceUA(req.headers['user-agent'])
+      crayon.gray(reduceUA(req.headers['user-agent']))
     )
   }
 }
