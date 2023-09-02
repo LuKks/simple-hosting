@@ -122,14 +122,28 @@ module.exports = class Hosting {
   }
 
   _onproxyerror (err, req, res) {
+    if (err.code === 'ECONNRESET') {
+      // 502
+      res.writeHead(520, { 'Content-Type': 'text/plain' })
+      res.end('Web server closed the connection unexpectedly.')
+      return
+    }
+
     if (err.code === 'ECONNREFUSED') {
+      // 503
       res.writeHead(521, { 'Content-Type': 'text/plain' })
       res.end('Web server is down.')
       return
     }
 
-    // Temporarily log unknown errors to catch the common ones like timeout, etc
-    console.error(err)
+    if (err.code === 'ETIMEDOUT') {
+      // 504
+      res.writeHead(524, { 'Content-Type': 'text/plain' })
+      res.end('Web server timed out.')
+      return
+    }
+
+    console.error(err) // Temporarily log rare errors
 
     res.writeHead(500, { 'Content-Type': 'text/plain' })
     res.end('Internal error.')
