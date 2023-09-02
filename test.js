@@ -27,10 +27,10 @@ test('basic', async function (t) {
   app2.close()
 
   const c = await fetch('http://127.0.0.1:8080', { headers: { host: 'a.leet.ar' } })
-  t.is(c.status, 521)
+  t.is(c.status, 503)
 
   const d = await fetch('http://127.0.0.1:8080', { headers: { host: 'b.leet.ar' } })
-  t.is(d.status, 521)
+  t.is(d.status, 503)
 
   await hosting.close()
 })

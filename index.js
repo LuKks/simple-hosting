@@ -123,22 +123,19 @@ module.exports = class Hosting {
 
   _onproxyerror (err, req, res) {
     if (err.code === 'ECONNRESET') {
-      // 502
-      res.writeHead(520, { 'Content-Type': 'text/plain' })
+      res.writeHead(502, { 'Content-Type': 'text/plain' })
       res.end('Web server closed the connection unexpectedly.')
       return
     }
 
     if (err.code === 'ECONNREFUSED') {
-      // 503
-      res.writeHead(521, { 'Content-Type': 'text/plain' })
+      res.writeHead(503, { 'Content-Type': 'text/plain' })
       res.end('Web server is down.')
       return
     }
 
     if (err.code === 'ETIMEDOUT') {
-      // 504
-      res.writeHead(524, { 'Content-Type': 'text/plain' })
+      res.writeHead(504, { 'Content-Type': 'text/plain' })
       res.end('Web server timed out.')
       return
     }
