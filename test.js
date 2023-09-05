@@ -124,6 +124,34 @@ test('auth', async function (t) {
   await hosting.close()
 })
 
+test('location', async function (t) {
+  t.plan(4)
+
+  const hosting = new Hosting()
+  hosting.add('app.leet.ar', {
+    destination: 'http://127.0.0.1:3000',
+    location: {
+      '/api': 'http://127.0.0.1:1337'
+    }
+  })
+  await hosting.listen({ insecurePort: 8080, securePort: false })
+
+  const app1 = await createServer(3000, (req, res) => res.end('Hello'))
+  const app2 = await createServer(1337, (req, res) => res.end('World'))
+
+  const a = await fetch('http://127.0.0.1:8080', { headers: { host: 'app.leet.ar' } })
+  t.is(a.status, 200)
+  t.is(await a.text(), 'Hello')
+
+  const b = await fetch('http://127.0.0.1:8080/api', { headers: { host: 'app.leet.ar' } })
+  t.is(b.status, 200)
+  t.is(await b.text(), 'World')
+
+  app1.close()
+  app2.close()
+  await hosting.close()
+})
+
 async function createServer (port, onrequest) {
   const server = http.createServer(onrequest)
   await listen(server, port)

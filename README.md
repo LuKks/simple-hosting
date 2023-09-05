@@ -21,6 +21,13 @@ const hosting = new Hosting()
 hosting.add('a.leet.ar', { destination: 'http://127.0.0.1:1337' })
 hosting.add('b.leet.ar', { destination: 'http://127.0.0.1:3000' })
 
+hosting.add('c.leet.ar', {
+  destination: 'http://127.0.0.1:3000', // Frontend
+  location: {
+    '/api': 'http://127.0.0.1:1010' // Backend
+  }
+})
+
 await hosting.listen({ securePort: false })
 
 // Try making requests to http://127.0.0.1:80 and setting the Host header accordingly
@@ -63,6 +70,7 @@ Available `options`:
 ```js
 {
   destination: String, // Target URL (required)
+  location: Object, // Extra "starts with" URL matches
   cert: String, // Eg fullchain.pem
   key: String // Eg privkey.pem'
 }

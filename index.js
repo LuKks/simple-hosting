@@ -36,7 +36,8 @@ module.exports = class Hosting {
 
     this.apps.set(servername, {
       secureContext: opts.cert && opts.key ? createSecureContext(opts.cert, opts.key) : null,
-      destination: opts.destination
+      destination: opts.destination,
+      location: opts.location || null
     })
   }
 
@@ -47,6 +48,7 @@ module.exports = class Hosting {
 
     if (opts.cert && opts.key) app.secureContext = createSecureContext(opts.cert, opts.key)
     if (opts.destination) app.destination = opts.destination
+    if (opts.location) app.location = opts.location
   }
 
   async listen (opts = {}) {
@@ -98,6 +100,18 @@ module.exports = class Hosting {
       res.end()
       return
     } */
+
+    if (app.location) {
+      for (const pathname in app.location) {
+        const destination = app.location[pathname]
+
+        // TODO: Use path-to-regexp lib
+        if (req.url.startsWith(pathname)) {
+          this.proxy.web(req, res, { target: destination, server })
+          return
+        }
+      }
+    }
 
     // TODO: ideally manual forward it without http-proxy
     this.proxy.web(req, res, { target: app.destination, server })
