@@ -82,12 +82,7 @@ module.exports = class Hosting {
 
     if (this.log) this._logRequest(req, app)
 
-    if (!this._isAuthenticated(req)) {
-      res.connection.destroy()
-      return
-    }
-
-    if (!app) {
+    if (!app || !this._isAuthenticated(req)) {
       res.connection.destroy()
       return
     }
