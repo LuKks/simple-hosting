@@ -103,7 +103,7 @@ module.exports = class Hosting {
         }
 
         res.writeHead(200, { 'Content-Type': 'text/plain' })
-        res.end(data, 'utf-8')
+        res.end(data)
       })
 
       return
