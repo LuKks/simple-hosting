@@ -213,6 +213,7 @@ module.exports = class Hosting {
 
 function initSecureContext (hosting, servername, opts) {
   if (opts.certbot) {
+    // TODO: If you do "Renew & replace" it will use "../{servername}-0001/.." breaking the default path
     opts.cert = '/etc/letsencrypt/live/' + servername + '/fullchain.pem'
     opts.key = '/etc/letsencrypt/live/' + servername + '/privkey.pem'
   }
