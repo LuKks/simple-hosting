@@ -38,7 +38,7 @@ module.exports = class Hosting {
     if (!opts.destination) throw new Error('Destination is required')
 
     this.apps.set(servername, {
-      secure: (opts.cert && opts.key) || opts.certbot ? createSecureContext(opts.cert, opts.key) : null,
+      secure: (opts.cert && opts.key) || opts.certbot ? initSecureContext(this, servername, opts) : null,
       destination: opts.destination,
       location: opts.location || null
     })
