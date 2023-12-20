@@ -44,7 +44,7 @@ Creates a pair of servers that uses the `Host` header to dynamically load differ
 
 ```js
 {
-  log: false, // Enable requests logging
+  log: 0, // Enable logging (0=disabled, 1=requests, 2=SNI)
   behindProxy: false, // If hosting is behind CloudFlare or NGINX then enable this option
   auth: String, // Secret token that must be sent in the request header "x-simple-hosting"
   certbot: true // Handle renewal of certificates
