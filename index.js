@@ -93,7 +93,7 @@ module.exports = class Hosting {
     if (this.log) this._logRequest(req, app)
 
     if (this.certbot && this.insecureServer === server && req.url.startsWith('/.well-known/acme-challenge/')) {
-      const token = req.url.slice(28).replace(/[^a-zA-Z0-9_-]+/i, '')
+      const token = req.url.slice(28).replace(/[^a-zA-Z0-9_-]+/ig, '')
       const challenge = path.join('/tmp/letsencrypt/.well-known/acme-challenge', token)
 
       fs.readFile(challenge, function (err, data) {
