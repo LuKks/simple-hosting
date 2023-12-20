@@ -1,12 +1,14 @@
 const tls = require('tls')
 const http = require('http')
 const https = require('https')
+const path = require('path')
 const fs = require('fs')
 const httpProxy = require('http-proxy')
 const reduceUA = require('reduce-user-agent')
 const graceful = require('graceful-http')
 const crayon = require('tiny-crayon')
 const listen = require('./lib/listen.js')
+const watchFile = require('./lib/watch-file.js')
 
 module.exports = class Hosting {
   constructor (opts = {}) {
@@ -15,6 +17,7 @@ module.exports = class Hosting {
     this.log = !!opts.log
     this.behindProxy = opts.behindProxy
     this.auth = opts.auth
+    this.certbot = opts.certbot !== false
 
     this.proxy = httpProxy.createProxyServer()
     this.proxy.on('error', this._onproxyerror.bind(this))
@@ -35,7 +38,7 @@ module.exports = class Hosting {
     if (!opts.destination) throw new Error('Destination is required')
 
     this.apps.set(servername, {
-      secureContext: opts.cert && opts.key ? createSecureContext(opts.cert, opts.key) : null,
+      secure: (opts.cert && opts.key) || opts.certbot ? initSecureContext(this, servername, opts) : null,
       destination: opts.destination,
       location: opts.location || null
     })
@@ -46,7 +49,7 @@ module.exports = class Hosting {
 
     const app = this.apps.get(servername)
 
-    if (opts.cert && opts.key) app.secureContext = createSecureContext(opts.cert, opts.key)
+    if ((opts.cert && opts.key) || opts.certbot) app.secure = initSecureContext(this, servername, opts)
     if (opts.destination) app.destination = opts.destination
     if (opts.location) app.location = opts.location
   }
@@ -59,20 +62,25 @@ module.exports = class Hosting {
   }
 
   async close () {
+    for (const [, app] of this.apps) {
+      if (app.secure) app.secure.unwatch()
+    }
+
     await Promise.all([
       this.insecureServerClose(),
       this.secureServer.listening ? this.secureServerClose() : null
     ])
+
     this.proxy.close()
   }
 
   _SNICallback (servername, cb) {
     const app = this.apps.get(servername)
 
-    if (this.log) console.log('- SNI:', servername, 'App found?', !!app)
+    if (this.log) console.log('- SNI:', servername, 'App found?', !!app, 'Secure?', !!app?.secure)
 
-    if (app && app.secureContext) {
-      cb(null, app.secureContext)
+    if (app && app.secure) {
+      cb(null, app.secure.context)
       return
     }
 
@@ -84,12 +92,29 @@ module.exports = class Hosting {
 
     if (this.log) this._logRequest(req, app)
 
+    if (this.certbot && this.insecureServer === server && req.url.startsWith('/.well-known/acme-challenge/')) {
+      const token = req.url.slice(28).replace(/[^a-zA-Z0-9_-]+/ig, '')
+      const challenge = path.join('/tmp/letsencrypt/.well-known/acme-challenge', token)
+
+      fs.readFile(challenge, function (err, data) {
+        if (err) {
+          res.connection.destroy()
+          return
+        }
+
+        res.writeHead(200, { 'Content-Type': 'text/plain' })
+        res.end(data)
+      })
+
+      return
+    }
+
     if (!app || !this._isAuthenticated(req)) {
       res.connection.destroy()
       return
     }
 
-    if (this.insecureServer === server && app.secureContext) {
+    if (this.insecureServer === server && app.secure) {
       res.writeHead(301, { Location: 'https://' + req.headers.host + req.url })
       res.end()
       return
@@ -183,6 +208,50 @@ module.exports = class Hosting {
       // req.body,
       crayon.gray(reduceUA(req.headers['user-agent']))
     )
+  }
+}
+
+function initSecureContext (hosting, servername, opts) {
+  if (opts.certbot) {
+    // TODO: If you do "Renew & replace" it will use "../{servername}-0001/.." breaking the default path
+    opts.cert = '/etc/letsencrypt/live/' + servername + '/fullchain.pem'
+    opts.key = '/etc/letsencrypt/live/' + servername + '/privkey.pem'
+  }
+
+  let context = null
+  let timeout = null
+
+  try {
+    context = createSecureContext(opts.cert, opts.key)
+  } catch {}
+
+  const unwatchCert = watchFile(opts.cert, onchange)
+  const unwatchKey = watchFile(opts.key, onchange)
+
+  return {
+    context,
+    unwatch: function () {
+      unwatchCert()
+      unwatchKey()
+      if (timeout !== null) clearTimeout(timeout)
+    }
+  }
+
+  function onchange (filename, exists) {
+    if (!exists) return
+
+    if (hosting.log) console.log('- SSL change', filename)
+
+    timeout = setTimeout(() => {
+      const app = hosting.apps.get(servername)
+      if (!app || !app.secure) return
+
+      try {
+        app.secure.context = createSecureContext(opts.cert, opts.key)
+
+        if (hosting.log) console.log('- SSL updated')
+      } catch {}
+    }, 30000)
   }
 }
 
