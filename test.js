@@ -152,6 +152,56 @@ test('location', async function (t) {
   await hosting.close()
 })
 
+test('behind proxy configurable per app', async function (t) {
+  t.plan(8)
+
+  const hosting = new Hosting({
+    behindProxy: true,
+    auth: '4321'
+  })
+
+  hosting.add('a.leet.ar', { destination: 'http://127.0.0.1:3000' })
+  hosting.add('b.leet.ar', { destination: 'http://127.0.0.1:1337', behindProxy: false, auth: null })
+
+  await hosting.listen({ insecurePort: 8080, securePort: false })
+
+  const app1 = await createServer(3000, (req, res) => {
+    t.is(req.headers['x-forwarded-for'], '1.2.3.4')
+    res.end('Hello')
+  })
+
+  const app2 = await createServer(1337, (req, res) => {
+    t.is(req.headers['x-forwarded-for'], '::ffff:127.0.0.1')
+    res.end('World')
+  })
+
+  try {
+    await fetch('http://127.0.0.1:8080', { headers: { host: 'a.leet.ar' } })
+    t.fail('Should have failed')
+  } catch (err) {
+    t.is(err.code, 'ECONNRESET')
+  }
+
+  try {
+    await fetch('http://127.0.0.1:8080', { headers: { host: 'a.leet.ar', 'x-simple-hosting': '0000' } })
+    t.fail('Should have failed')
+  } catch (err) {
+    t.is(err.code, 'ECONNRESET')
+  }
+
+  const a = await fetch('http://127.0.0.1:8080', { headers: { host: 'a.leet.ar', 'x-forwarded-for': '1.2.3.4', 'x-simple-hosting': '4321' } })
+  t.is(a.status, 200)
+  t.is(await a.text(), 'Hello')
+
+  const b = await fetch('http://127.0.0.1:8080', { headers: { host: 'b.leet.ar', 'x-forwarded-for': '1.2.3.4' } })
+  t.is(b.status, 200)
+  t.is(await b.text(), 'World')
+
+  app1.close()
+  app2.close()
+  await hosting.close()
+})
+
 async function createServer (port, onrequest) {
   const server = http.createServer(onrequest)
   await listen(server, port)

@@ -15,8 +15,8 @@ module.exports = class Hosting {
     this.apps = new Map()
 
     this.log = !!opts.log
-    this.behindProxy = opts.behindProxy
-    this.auth = opts.auth
+    this.behindProxy = !!opts.behindProxy
+    this.auth = opts.auth || null
     this.certbot = opts.certbot !== false
 
     this.proxy = httpProxy.createProxyServer()
@@ -40,7 +40,9 @@ module.exports = class Hosting {
     this.apps.set(servername, {
       secure: (opts.cert && opts.key) || opts.certbot ? initSecureContext(this, servername, opts) : null,
       destination: opts.destination,
-      location: opts.location || null
+      location: opts.location || null,
+      behindProxy: typeof opts.behindProxy === 'boolean' ? opts.behindProxy : this.behindProxy,
+      auth: (typeof opts.auth === 'string' || opts.auth === null) ? opts.auth : this.auth
     })
   }
 
@@ -52,6 +54,8 @@ module.exports = class Hosting {
     if ((opts.cert && opts.key) || opts.certbot) app.secure = initSecureContext(this, servername, opts)
     if (opts.destination) app.destination = opts.destination
     if (opts.location) app.location = opts.location
+    if (opts.behindProxy) app.behindProxy = opts.behindProxy
+    if (opts.auth) app.auth = opts.auth
   }
 
   async listen (opts = {}) {
@@ -109,7 +113,7 @@ module.exports = class Hosting {
       return
     }
 
-    if (!app || !this._isAuthenticated(req)) {
+    if (!app || !this._isAuthenticated(req, app)) {
       res.connection.destroy()
       return
     }
@@ -132,26 +136,26 @@ module.exports = class Hosting {
 
         // TODO: Use path-to-regexp lib
         if (req.url.startsWith(pathname)) {
-          this.proxy.web(req, res, { target: destination, server })
+          this.proxy.web(req, res, { target: destination, server, app })
           return
         }
       }
     }
 
     // TODO: ideally manual forward it without http-proxy
-    this.proxy.web(req, res, { target: app.destination, server })
+    this.proxy.web(req, res, { target: app.destination, server, app })
   }
 
-  _onproxyreq (proxyReq, req, res, options) {
+  _onproxyreq (proxyReq, req, res, { server, app }) {
     proxyReq.removeHeader('x-simple-hosting')
 
-    if (!this.behindProxy) {
-      const remoteAddress = this._getRemoteAddress(req)
+    if (!app.behindProxy) {
+      const remoteAddress = this._getRemoteAddress(req, app)
 
       proxyReq.removeHeader('Forwarded')
       proxyReq.removeHeader('X-Forwarded-Host')
       proxyReq.setHeader('X-Forwarded-For', remoteAddress)
-      proxyReq.setHeader('X-Forwarded-Proto', this.insecureServer === options.server ? 'http' : 'https')
+      proxyReq.setHeader('X-Forwarded-Proto', this.insecureServer === server ? 'http' : 'https')
     }
   }
 
@@ -180,21 +184,21 @@ module.exports = class Hosting {
     res.end('Internal error.')
   }
 
-  _isAuthenticated (req) {
-    return !this.auth || this.auth === req.headers['x-simple-hosting']
+  _isAuthenticated (req, app) {
+    return !app.auth || app.auth === req.headers['x-simple-hosting']
   }
 
-  _getRemoteAddress (req) {
-    if (!this.behindProxy) return req.connection.remoteAddress
+  _getRemoteAddress (req, app) {
+    if (!app.behindProxy) return req.connection.remoteAddress
 
-    if (!this._isAuthenticated(req)) return req.connection.remoteAddress
+    if (!this._isAuthenticated(req, app)) return req.connection.remoteAddress
 
     return (req.headers['x-forwarded-for'] || '').split(',').shift()
   }
 
   _logRequest (req, app) {
-    const remoteAddress = this._getRemoteAddress(req)
-    const remoteCountry = this.behindProxy === 'cf' && this.auth && this._isAuthenticated(req) ? req.headers['cf-ipcountry'] : null
+    const remoteAddress = this._getRemoteAddress(req, app)
+    const remoteCountry = app.behindProxy === 'cf' && app.auth && this._isAuthenticated(req, app) ? req.headers['cf-ipcountry'] : null
 
     const o = crayon.gray(crayon.bold('['))
     const c = crayon.gray(crayon.bold(']'))
