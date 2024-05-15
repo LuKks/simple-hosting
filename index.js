@@ -206,7 +206,7 @@ module.exports = class Hosting {
     console.log(
       '- Request',
       o + crayon.white((new Date().toLocaleString('en-GB'))) + c,
-      o + (this._isAuthenticated(req) ? crayon.green('OK') : crayon.red('ERR')), crayon.yellow(remoteAddress), crayon.gray(remoteCountry || 'null') + c,
+      o + (this._isAuthenticated(req, app) ? crayon.green('OK') : crayon.red('ERR')), crayon.yellow(remoteAddress), crayon.gray(remoteCountry || 'null') + c,
       // req.headers,
       o + (app ? crayon.green('OK') : crayon.red('ERR')), crayon.cyan(req.headers.host), crayon.yellow(req.method), crayon.magenta(req.url) + c,
       // req.body,
