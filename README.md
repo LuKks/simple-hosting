@@ -86,7 +86,9 @@ Available `options`:
   location: Object, // Extra "starts with" URL matches
   cert: String, // Eg fullchain.pem
   key: String, // Eg privkey.pem
-  certbot: false // Use default paths for Certbot (ignores `cert` and `key` options)
+  certbot: false, // Use default paths for Certbot (ignores `cert` and `key` options)
+  behindProxy, // Inherits the Hosting value by default (pass false to disable)
+  auth // Inherits the Hosting value by default (pass null to disable)
 }
 ```
 
