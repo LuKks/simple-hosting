@@ -213,8 +213,11 @@ module.exports = class Hosting {
   }
 
   _logRequest (req, app) {
+    const auth = app ? app.auth : this.auth
+    const behindProxy = app ? app.behindProxy : this.behindProxy
+
     const remoteAddress = this._getRemoteAddress(req, app)
-    const remoteCountry = app.behindProxy === 'cf' && app.auth && this._isAuthenticated(req, app) ? req.headers['cf-ipcountry'] : null
+    const remoteCountry = behindProxy === 'cf' && auth && this._isAuthenticated(req, app) ? req.headers['cf-ipcountry'] : null
 
     const o = crayon.gray(crayon.bold('['))
     const c = crayon.gray(crayon.bold(']'))
