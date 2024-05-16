@@ -118,7 +118,9 @@ module.exports = class Hosting {
       return
     }
 
-    if (this.insecureServer === server && app.secure) {
+    const protocol = this._getProtocol(req, app, server)
+
+    if (protocol === 'http' && app.secure) {
       res.writeHead(301, { Location: 'https://' + req.headers.host + req.url })
       res.end()
       return
@@ -185,15 +187,29 @@ module.exports = class Hosting {
   }
 
   _isAuthenticated (req, app) {
-    return !app.auth || app.auth === req.headers['x-simple-hosting']
+    const auth = app ? app.auth : this.auth
+
+    return !auth || auth === req.headers['x-simple-hosting']
   }
 
   _getRemoteAddress (req, app) {
-    if (!app.behindProxy) return req.connection.remoteAddress
+    const behindProxy = app ? app.behindProxy : this.behindProxy
 
-    if (!this._isAuthenticated(req, app)) return req.connection.remoteAddress
+    if (!behindProxy || !this._isAuthenticated(req, app)) {
+      return req.connection.remoteAddress
+    }
 
     return (req.headers['x-forwarded-for'] || '').split(',').shift()
+  }
+
+  _getProtocol (req, app, server) {
+    const behindProxy = app ? app.behindProxy : this.behindProxy
+
+    if (!behindProxy || !this._isAuthenticated(req, app)) {
+      return this.insecureServer === server ? 'http' : 'https'
+    }
+
+    return req.headers['x-forwarded-proto']
   }
 
   _logRequest (req, app) {
