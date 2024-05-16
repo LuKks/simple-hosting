@@ -1,6 +1,6 @@
 {
   "name": "simple-hosting",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Simple reverse proxy for hosting multiple apps in the same server",
   "main": "index.js",
   "scripts": {
